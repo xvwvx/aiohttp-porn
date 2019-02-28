@@ -1,14 +1,19 @@
 import asyncio
 import json
 import re
+import time
 
 import aiohttp
 import random
+import os
+from urllib.parse import urlparse
 
-from ChromeDriver import ChromeDriver
+from chrome_driver import ChromeDriver
 from user_agents import random_agent
 from lxml import etree
 import urllib.parse
+
+proxy="http://127.0.0.1:1087"
 
 def cookie():
     bs = ''
@@ -28,9 +33,7 @@ def cookie():
     return cookie
 
 async def fetch(session, url):
-    async with session.get(url,
-                           proxy="http://127.0.0.1:1087") as response:
-
+    async with session.get(url, proxy=proxy) as response:
         return await response.text()
 
 async def fetch_key(session, url):
@@ -42,8 +45,9 @@ async def fetch_key(session, url):
         context = etree.tounicode(div)
         viewkey = re.findall('viewkey=(.*?)"', context)
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(fetch_info(session, 'https://www.pornhub.com/embed/%s' % viewkey[0]))
+        # loop = asyncio.get_event_loop()
+        # loop.create_task(fetch_info(session, 'https://www.pornhub.com/embed/%s' % viewkey[0]))
+        await fetch_info(session, 'https://www.pornhub.com/embed/%s' % viewkey[0])
 
 
     url_next = tree.xpath('//a[@class="orangeButton" and text()="Next "]/@href')
@@ -73,8 +77,26 @@ async def fetch_info(session, url):
     link_url = info_json.get('link_url')
     quality_480p = info_json.get('quality_480p')
 
-    print(video_url)
+    parse_result = urlparse(video_url)
+    file_path = parse_result.path
+    await download_file(session, video_url, "./tmp/" + file_path)
 
+async def download_file(session, url, file_path):
+    async with session.get(url, proxy=proxy, timeout=None) as r:
+        path = os.path.dirname(file_path)
+        os.makedirs(path, exist_ok=True)
+        with open(file_path, 'wb') as file:
+            start = time.time()
+            total_size = 0
+            while True:
+                chunk = await r.content.read(8192)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                diff = time.time() - start
+                if diff % 10 == 0:
+                    print(f'{diff:0.2f}s, downloaded: {total_size / (1024 * 1024):0.2f}MB')
+                file.write(chunk)
 
 async def main():
     headers = {"User-Agent":random_agent()}
