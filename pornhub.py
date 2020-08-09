@@ -13,7 +13,7 @@ from user_agents import random_agent
 from lxml import etree
 import urllib.parse
 
-proxy="http://127.0.0.1:1087"
+proxy="http://127.0.0.1:7890"
 
 def cookie():
     bs = ''
@@ -62,20 +62,21 @@ async def fetch_info(session, url):
     driver = ChromeDriver()
     await driver.process(url)
 
-    video_xpath = '//*[@id="player"]/div[21]/video/source'
+    video_xpath = '//*[@id="player"]/script[1]'
     show = EC.presence_of_element_located((By.XPATH, video_xpath))
     driver.wait.until(show)
-    video_url = driver.driver.find_element_by_xpath(video_xpath).get_attribute('src')
 
-    html = driver.driver.page_source
-    info = re.findall('var flashvars =(.*?),\n', html)
-    info_json = json.loads(info[0])
+    video_url = driver.driver.execute_script("return quality_1080p;")
 
-    duration = info_json.get('video_duration')
-    title = info_json.get('video_title')
-    image_url = info_json.get('image_url')
-    link_url = info_json.get('link_url')
-    quality_480p = info_json.get('quality_480p')
+    # html = driver.driver.page_source
+    # info = re.findall('var flashvars_\d+ =(.*?)', html)
+    # info_json = json.loads(info[0])
+    #
+    # duration = info_json.get('video_duration')
+    # title = info_json.get('video_title')
+    # image_url = info_json.get('image_url')
+    # link_url = info_json.get('link_url')
+    # quality_480p = info_json.get('quality_480p')
 
     parse_result = urlparse(video_url)
     file_path = parse_result.path
